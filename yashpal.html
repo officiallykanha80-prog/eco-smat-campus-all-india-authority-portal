@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco Smart Campus - All India Population, Waste Analytics & Authority Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#f0fdf4', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet OpenStreetMap CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        .map-frame { height: 480px; }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); }
+        .dark .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); }
+        .pulse-marker {
+            width: 16px; height: 16px; background: #2563eb; border: 2px solid white;
+            border-radius: 50%; box-shadow: 0 0 0 rgba(37, 99, 235, 0.6);
+            animation: pulse 1.8s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+            70% { box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-200">
+
+    <!-- Top Navigation -->
+    <nav class="sticky top-0 z-50 glass border-b border-slate-200 dark:border-slate-800 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white shadow-md">
+                    <i class="fa-solid fa-leaf text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight text-emerald-700 dark:text-emerald-400">ECO SMART CAMPUS & INDIA AUTHORITY PORTAL</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">National Civic Action, Population & Waste Analytics Network</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <span id="roleBadge" class="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 text-xs px-2.5 py-1 rounded-full font-semibold border border-blue-300">
+                    <i class="fa-solid fa-user mr-1"></i> <span id="currentUserLabel">Public Guest</span>
+                </span>
+                <button id="themeToggle" onclick="toggleDarkMode()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:block text-amber-400"></i>
+                </button>
+                <div id="authNav" class="flex gap-2">
+                    <button id="loginRegisterBtn" onclick="openModal('userAuthModal')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">
+                        <i class="fa-solid fa-right-to-bracket"></i> Login / Register
+                    </button>
+                    <button id="logoutBtn" onclick="handleUserLogout()" class="hidden bg-slate-200 dark:bg-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium">
+                        Logout
+                    </button>
+                    <button onclick="openModal('adminAuthModal')" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium">
+                        <i class="fa-solid fa-lock text-amber-400"></i> Admin & Authority Portal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Section -->
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+        <!-- All India Authority Live Video Meeting & Action Header -->
+        <section class="bg-gradient-to-r from-emerald-800 to-teal-900 text-white p-6 rounded-2xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <span class="bg-emerald-500/30 text-emerald-200 text-xs px-3 py-1 rounded-full font-semibold border border-emerald-400/40">
+                    <i class="fa-solid fa-video text-amber-300 mr-1 animate-pulse"></i> Live Authority Command Hub
+                </span>
+                <h2 class="text-xl font-bold mt-2">All India State & District Authority Meeting Portal</h2>
+                <p class="text-xs text-emerald-100 max-w-xl mt-1">Connect directly with Municipal Commissioners, PWD Engineers, and State Environmental Officers to resolve reported critical issues in real-time.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="startAuthorityMeeting()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-headset text-base"></i> Join National Meeting Room
+                </button>
+            </div>
+        </section>
+
+        <!-- All India State Selector & Search Control -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="flex items-center space-x-3 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                <i class="fa-solid fa-map-location text-emerald-600 text-lg"></i>
+                <label class="text-sm font-medium">Select State / UT (28 States & 8 UTs):</label>
+                <select id="stateSelect" onchange="updateStateData()" class="bg-slate-50 dark:bg-slate-900 border text-sm rounded-md p-1.5 flex-1">
+                    <option value="UP">Uttar Pradesh (Noida / Lucknow / Villages)</option>
+                    <option value="DL">Delhi NCR (Municipal Corp Delhi)</option>
+                    <option value="MH">Maharashtra (BMC Mumbai / Pune Corp)</option>
+                    <option value="KA">Karnataka (BBMP Bengaluru)</option>
+                    <option value="TN">Tamil Nadu (GCC Chennai)</option>
+                    <option value="WB">West Bengal (KMC Kolkata)</option>
+                    <option value="RJ">Rajasthan (Jaipur Nagar Nigam)</option>
+                    <option value="GJ">Gujarat (AMC Ahmedabad)</option>
+                    <option value="PB">Punjab (Chandigarh Admin)</option>
+                    <option value="BR">Bihar (Patna Municipal Corp)</option>
+                </select>
+            </div>
+
+            <div class="flex items-center space-x-2 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                <i class="fa-solid fa-magnifying-glass text-emerald-600"></i>
+                <input type="text" id="mapSearchInput" placeholder="Search State, City, Town or Village Name..." class="bg-slate-50 dark:bg-slate-900 border text-sm rounded-md p-1.5 flex-1">
+                <button onclick="searchLocationOnMap()" class="bg-emerald-600 text-white text-xs px-3 py-2 rounded-md font-medium">
+                    Search Place
+                </button>
+            </div>
+        </div>
+
+        <!-- DASHBOARD 1: ALL INDIA STATE POPULATION % SHARE & DEMOGRAPHICS -->
+        <section class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-3">
+                <h3 class="font-bold text-base flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                    <i class="fa-solid fa-users text-lg"></i> All-India State Demographics & Population % Share Dashboard
+                </h3>
+                <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-semibold">Census Analytics</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span class="text-xs text-slate-500 uppercase font-bold">Total State Population</span>
+                    <div class="mt-2 text-2xl font-black text-blue-600" id="popVal">23.5 Cr</div>
+                    <p class="text-xs text-slate-400 mt-1">National Share: <b id="popShareVal" class="text-slate-700 dark:text-slate-200">16.5%</b></p>
+                </div>
+
+                <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span class="text-xs text-slate-500 uppercase font-bold">Urban vs Rural Split (%)</span>
+                    <div class="mt-2 text-xs font-bold space-y-1">
+                        <div class="flex justify-between text-emerald-600"><span>Urban:</span><span id="urbanPctVal">22.3%</span></div>
+                        <div class="flex justify-between text-indigo-600"><span>Rural:</span><span id="ruralPctVal">77.7%</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span class="text-xs text-slate-500 uppercase font-bold">Air Quality Index (AQI)</span>
+                    <div class="mt-2 flex items-baseline space-x-2">
+                        <span id="aqiVal" class="text-2xl font-black text-amber-600">142</span>
+                        <span id="aqiStatus" class="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded">Moderate</span>
+                    </div>
+                    <p id="selectedStateLabel" class="text-xs text-slate-400 mt-1">Uttar Pradesh</p>
+                </div>
+
+                <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span class="text-xs text-slate-500 uppercase font-bold">Assigned Authority</span>
+                    <div id="authorityNameVal" class="mt-2 text-sm font-bold text-emerald-600 truncate">Noida Development Corp</div>
+                    <p class="text-xs text-slate-400 mt-1">Node Officer: <b id="officerVal" class="text-slate-700 dark:text-slate-200">A. K. Sharma</b></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- DASHBOARD 2: GARBAGE & WASTE LIVE SEVERITY & COLLECTION METRICS -->
+        <section class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-3">
+                <h3 class="font-bold text-base flex items-center gap-2 text-red-600 dark:text-red-400">
+                    <i class="fa-solid fa-trash-can text-lg"></i> Regional Garbage & Waste Live Severity Dashboard
+                </h3>
+                <span class="text-xs bg-red-100 text-red-800 px-2.5 py-1 rounded-full font-semibold">Live Garbage Telemetry</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Daily Waste Generation -->
+                <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span class="text-xs text-slate-500 uppercase font-bold">Daily Waste Generated</span>
+                    <div class="mt-2 text-2xl font-black text-red-600"><span id="wasteTPDVal">14,800</span> <span class="text-sm font-semibold">TPD (Tons/Day)</span></div>
+                    <p class="text-xs text-slate-400 mt-1">Critical Waste Severity Rating</p>
+                </div>
+
+                <!-- Wet vs Dry Waste Split -->
+                <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span class="text-xs text-slate-500 uppercase font-bold">Wet vs Dry Waste Share (%)</span>
+                    <div class="mt-2 text-xs font-bold space-y-1">
+                        <div class="flex justify-between text-amber-600"><span>Wet (Organic/Bio):</span><span id="wetWastePct">54%</span></div>
+                        <div class="flex justify-between text-blue-600"><span>Dry (Recyclable/Plastic):</span><span id="dryWastePct">46%</span></div>
+                    </div>
+                </div>
+
+                <!-- Municipal Collection Efficiency -->
+                <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-slate-500 uppercase font-bold">Collection Efficiency</span>
+                        <span id="wasteEffVal" class="text-xs font-bold text-emerald-600">78%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-3 rounded-full overflow-hidden mt-2">
+                        <div id="wasteEffBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 78%;"></div>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2">Municipal Disposal Rate</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reporting Form & Map 1 Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Report Form -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation text-emerald-600"></i> Report Problem
+                </h3>
+                <form id="reportForm" onsubmit="handleReportSubmit(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium mb-1">State / City / Town / Village Location</label>
+                        <input type="text" id="reportLocation" class="w-full bg-slate-50 dark:bg-slate-900 border rounded-lg p-2 text-sm" placeholder="e.g. Village Rampur, Sector 62 Noida, UP" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Issue Category</label>
+                        <select id="issueCategory" class="w-full bg-slate-50 dark:bg-slate-900 border rounded-lg p-2 text-sm">
+                            <option>Garbage/Waste</option>
+                            <option>Water supply/leakage</option>
+                            <option>Electricity</option>
+                            <option>Damaged roads</option>
+                            <option>Air pollution</option>
+                            <option>Drainage/Sewage</option>
+                            <option>Street lights</option>
+                            <option>Greenery/Trees</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-medium">Describe Issue (Aam Bhasha)</label>
+                            <button type="button" onclick="convertWithAI()" class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded flex items-center gap-1">
+                                <i class="fa-solid fa-wand-magic-sparkles text-emerald-600"></i> Convert with AI
+                            </button>
+                        </div>
+                        <textarea id="issueDesc" rows="3" class="w-full bg-slate-50 dark:bg-slate-900 border rounded-lg p-2 text-sm" placeholder="Apni bhasha me likhein..." required></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Photo Evidence (Optional - AI auto-attaches)</label>
+                        <input type="file" id="issuePhoto" accept="image/*" onchange="previewImage(event)" class="w-full text-xs text-slate-500 bg-slate-50 border rounded-lg p-1.5">
+                        <div id="imagePreviewContainer" class="mt-2 hidden">
+                            <img id="imagePreview" src="#" class="h-20 rounded-md object-cover border">
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="button" onclick="startLiveGpsTracking()" class="w-full bg-blue-50 text-blue-700 text-xs py-2 rounded-lg border border-blue-200 flex items-center justify-center gap-2 font-medium">
+                            <i class="fa-solid fa-location-crosshairs text-blue-600"></i> <span id="gpsStatus">Start Live GPS Tracking</span>
+                        </button>
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 rounded-lg text-sm transition">
+                        Submit Report & Assign to Authority
+                    </button>
+                </form>
+            </div>
+
+            <!-- MAP 1: LIVE PINNING MAP -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-map-pin text-emerald-600"></i> Map 1: Live Pinning & Authority Dispatch Map
+                    </h3>
+                    <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-semibold">Real-time Connected</span>
+                </div>
+                <div id="map1" class="map-frame rounded-lg overflow-hidden border"></div>
+            </div>
+        </div>
+
+        <!-- MAP 2: ALL INDIA GIS HEATMAP & INTENSITY HIGHLIGHT MAP -->
+        <section class="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+            <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                <div>
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-fire-flame-curved text-red-500"></i> Map 2: All India GIS Authority Heatmap
+                    </h3>
+                    <p class="text-xs text-slate-400">High complaint intensity areas highlighted for Authority Video Meetings (Red: High, Orange: Medium, Green: Low).</p>
+                </div>
+            </div>
+            <div id="map2" class="map-frame rounded-lg overflow-hidden border"></div>
+        </section>
+
+        <!-- Authority Action Dashboard -->
+        <section class="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-building-circle-check text-emerald-600"></i> Assigned Authority Resolution Board
+                </h3>
+                <button id="exportCsvBtn" onclick="exportCSV()" class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-200 border border-emerald-300 disabled:opacity-50" disabled>
+                    <i class="fa-solid fa-download mr-1"></i> Export Official Report CSV
+                </button>
+            </div>
+
+            <div id="adminLockMessage" class="bg-slate-100 dark:bg-slate-900 p-6 rounded-lg text-center border border-dashed border-slate-300 my-4">
+                <i class="fa-solid fa-lock text-3xl text-slate-400 mb-2"></i>
+                <h4 class="font-bold text-slate-700 text-sm">Authority & Admin Passcode Required</h4>
+                <p class="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-3">State authorities & administrators must authenticate to action tickets, assign officers, or resolve reported problems.</p>
+                <button onclick="openModal('adminAuthModal')" class="bg-emerald-600 text-white text-xs px-4 py-2 rounded-lg font-medium">
+                    Login as Authority / Admin
+                </button>
+            </div>
+
+            <div id="adminTableContainer" class="overflow-x-auto hidden">
+                <table class="w-full text-xs text-left text-slate-500">
+                    <thead class="text-xs uppercase bg-slate-100 text-slate-700">
+                        <tr>
+                            <th class="px-4 py-3">ID</th>
+                            <th class="px-4 py-3">Location/State/Village</th>
+                            <th class="px-4 py-3">Category</th>
+                            <th class="px-4 py-3">Assigned Authority</th>
+                            <th class="px-4 py-3">Photo</th>
+                            <th class="px-4 py-3">Authority Status</th>
+                            <th class="px-4 py-3 text-center">Action Control</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminTableBody" class="divide-y divide-slate-200"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Authority Meeting Video Room Modal -->
+    <div id="videoMeetingModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md hidden flex items-center justify-center z-50">
+        <div class="bg-slate-900 border border-slate-700 text-white p-6 rounded-2xl shadow-2xl w-full max-w-3xl relative">
+            <button onclick="closeModal('videoMeetingModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <div class="flex items-center gap-3 mb-4">
+                <span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+                <h3 class="font-bold text-lg">National Environmental Authority Meeting - Live Conference</h3>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-slate-800 rounded-xl h-48 flex flex-col justify-between p-3 relative border border-slate-700">
+                    <span class="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded w-max">Admin Host (You)</span>
+                    <i class="fa-solid fa-user-shield text-5xl text-slate-600 absolute inset-0 m-auto w-max h-max"></i>
+                    <p class="text-xs text-slate-400 text-center z-10">Webcam Active</p>
+                </div>
+                <div class="bg-slate-800 rounded-xl h-48 flex flex-col justify-between p-3 relative border border-slate-700">
+                    <span class="text-xs bg-blue-600 text-white px-2 py-0.5 rounded w-max" id="meetingAuthorityName">Noida Municipal Officer</span>
+                    <i class="fa-solid fa-user-tie text-5xl text-slate-600 absolute inset-0 m-auto w-max h-max"></i>
+                    <p class="text-xs text-slate-400 text-center z-10">Connected to Regional Office</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                <span class="text-xs text-slate-300"><i class="fa-solid fa-comments text-emerald-400 mr-1"></i> Topic: Resolving High Critical AQI & Waste Reports</span>
+                <div class="flex gap-2">
+                    <button onclick="alert('Microphone Muted')" class="bg-slate-700 p-2 rounded-lg text-xs"><i class="fa-solid fa-microphone"></i></button>
+                    <button onclick="alert('Camera Turned Off')" class="bg-slate-700 p-2 rounded-lg text-xs"><i class="fa-solid fa-video"></i></button>
+                    <button onclick="closeModal('videoMeetingModal')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-bold">End Call</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="userAuthModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-xl w-full max-w-sm relative">
+            <button onclick="closeModal('userAuthModal')" class="absolute top-4 right-4 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex border-b mb-4 text-sm">
+                <button id="tabLoginBtn" onclick="switchAuthTab('login')" class="flex-1 py-2 font-bold text-emerald-600 border-b-2 border-emerald-600">Login</button>
+                <button id="tabRegisterBtn" onclick="switchAuthTab('register')" class="flex-1 py-2 font-medium text-slate-500">Register</button>
+            </div>
+            <div id="loginView" class="space-y-3">
+                <input type="email" id="loginEmail" placeholder="Email ID" class="w-full p-2 border rounded text-sm">
+                <input type="password" id="loginPass" placeholder="Password" class="w-full p-2 border rounded text-sm">
+                <div class="text-right"><button onclick="switchAuthTab('forgot')" class="text-xs text-emerald-600">Forgot Password?</button></div>
+                <button onclick="handleUserLogin()" class="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium">Sign In</button>
+            </div>
+            <div id="registerView" class="space-y-3 hidden">
+                <input type="text" id="regName" placeholder="Full Name" class="w-full p-2 border rounded text-sm">
+                <input type="email" id="regEmail" placeholder="Email ID" class="w-full p-2 border rounded text-sm">
+                <input type="tel" id="regPhone" placeholder="Mobile Number" class="w-full p-2 border rounded text-sm">
+                <input type="password" id="regPass" placeholder="Create Password" class="w-full p-2 border rounded text-sm">
+                <button onclick="handleUserRegister()" class="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium">Register Account</button>
+            </div>
+            <div id="forgotView" class="space-y-3 hidden">
+                <p class="text-xs text-slate-500">Enter registered Gmail ID. Recovery link will be dispatched.</p>
+                <input type="email" id="forgotEmail" placeholder="Registered Gmail ID" class="w-full p-2 border rounded text-sm">
+                <button onclick="handleForgotPassword()" class="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium">Send Reset Link</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminAuthModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-xl w-full max-w-sm relative">
+            <button onclick="closeModal('adminAuthModal')" class="absolute top-4 right-4 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-bold text-lg mb-1 text-center">Authority / Admin Login</h3>
+            <p class="text-xs text-slate-500 text-center mb-4">Passcode: admin123</p>
+            <input type="password" id="adminPassword" placeholder="Enter Authority Passcode" class="w-full p-2 border rounded text-sm mb-3">
+            <button onclick="handleAdminLogin()" class="w-full bg-emerald-600 text-white py-2 rounded text-sm font-medium">Authenticate Portal</button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS & Leaflet Heatmap Library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <script>
+        let currentGps = [28.5355, 77.3910];
+        let map1, map2, markersGroup1, heatmapLayer2, highlightsGroup2, liveUserMarker, watchId;
+        let uploadedPhotoData = null;
+        let isAdminLoggedIn = false;
+        let currentUser = null;
+
+        const stateAnalytics = {
+            "UP": { pop: "23.5 Cr", popShare: "16.5%", authority: "Noida & Greater Noida Dev Authority", officer: "A. K. Sharma", urbanPct: "22.3%", ruralPct: "77.7%", wasteTPD: "14,800", wetPct: "54%", dryPct: "46%", wasteEff: "78%", center: [28.5355, 77.3910], aqi: 142 },
+            "DL": { pop: "2.1 Cr", popShare: "1.5%", authority: "Municipal Corporation of Delhi (MCD)", officer: "Rajesh Malhotra", urbanPct: "97.5%", ruralPct: "2.5%", wasteTPD: "11,300", wetPct: "50%", dryPct: "50%", wasteEff: "85%", center: [28.6139, 77.2090], aqi: 285 },
+            "MH": { pop: "12.6 Cr", popShare: "9.3%", authority: "Brihanmumbai Municipal Corp (BMC)", officer: "V. Deshmukh", urbanPct: "45.2%", ruralPct: "54.8%", wasteTPD: "22,500", wetPct: "58%", dryPct: "42%", wasteEff: "72%", center: [19.0760, 72.8777], aqi: 95 },
+            "KA": { pop: "6.8 Cr", popShare: "5.0%", authority: "Bruhat Bengaluru Mahanagara Palike", officer: "S. Rao", urbanPct: "38.6%", ruralPct: "61.4%", wasteTPD: "10,200", wetPct: "60%", dryPct: "40%", wasteEff: "80%", center: [12.9716, 77.5946], aqi: 62 },
+            "TN": { pop: "7.6 Cr", popShare: "5.6%", authority: "Greater Chennai Corporation (GCC)", officer: "K. R. Varma", urbanPct: "48.4%", ruralPct: "51.6%", wasteTPD: "13,100", wetPct: "55%", dryPct: "45%", wasteEff: "76%", center: [13.0827, 80.2707], aqi: 78 },
+            "WB": { pop: "9.9 Cr", popShare: "7.3%", authority: "Kolkata Municipal Corp (KMC)", officer: "S. Banerjee", urbanPct: "31.9%", ruralPct: "68.1%", wasteTPD: "13,700", wetPct: "52%", dryPct: "48%", wasteEff: "68%", center: [22.5726, 88.3639], aqi: 165 },
+            "RJ": { pop: "8.1 Cr", popShare: "6.0%", authority: "Jaipur Nagar Nigam", officer: "M. L. Meena", urbanPct: "24.9%", ruralPct: "75.1%", wasteTPD: "6,800", wetPct: "45%", dryPct: "55%", wasteEff: "65%", center: [26.9124, 75.7873], aqi: 130 },
+            "GJ": { pop: "7.0 Cr", popShare: "5.2%", authority: "Ahmedabad Municipal Corp (AMC)", officer: "P. Patel", urbanPct: "42.6%", ruralPct: "57.4%", wasteTPD: "9,900", wetPct: "51%", dryPct: "49%", wasteEff: "82%", center: [23.0225, 72.5714], aqi: 110 },
+            "PB": { pop: "3.0 Cr", popShare: "2.2%", authority: "Chandigarh Admin & Municipal Corp", officer: "H. Singh", urbanPct: "37.5%", ruralPct: "62.5%", wasteTPD: "4,200", wetPct: "53%", dryPct: "47%", wasteEff: "74%", center: [30.7333, 76.7794], aqi: 210 },
+            "BR": { pop: "12.7 Cr", popShare: "9.4%", authority: "Patna Municipal Corporation", officer: "R. K. Verma", urbanPct: "11.3%", ruralPct: "88.7%", wasteTPD: "8,500", wetPct: "62%", dryPct: "38%", wasteEff: "58%", center: [25.5941, 85.1376], aqi: 240 }
+        };
+
+        const aiCategoryPhotos = {
+            "Garbage/Waste": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300",
+            "Water supply/leakage": "https://images.unsplash.com/photo-1541888946425-d0fbb186a5b3?w=300",
+            "Electricity": "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=300",
+            "Damaged roads": "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=300",
+            "Air pollution": "https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=300"
+        };
+
+        let reports = [
+            { id: "IND-101", location: "Village Rampur, Noida, UP", category: "Garbage/Waste", authority: "Noida Authority", desc: "[AI Report] Severe waste heap near main street.", status: "Assigned to Authority", level: "high", lat: 28.6271, lng: 77.3726, photo: aiCategoryPhotos["Garbage/Waste"] },
+            { id: "IND-102", location: "Connaught Place, Delhi", category: "Air pollution", authority: "MCD Delhi", desc: "[AI Report] High particulate smog along ring road.", status: "Action Initiated", level: "high", lat: 28.6315, lng: 77.2167, photo: aiCategoryPhotos["Air pollution"] },
+            { id: "IND-103", location: "Andheri East, Mumbai, MH", category: "Water supply/leakage", authority: "BMC Mumbai", desc: "[AI Report] Underground pipeline leak.", status: "In Progress", level: "medium", lat: 19.1136, lng: 72.8697, photo: aiCategoryPhotos["Water supply/leakage"] }
+        ];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            initBothMaps();
+            updateStateData();
+        });
+
+        function createSatelliteHybridLayer() {
+            const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+            const hybridLabels = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+            return L.layerGroup([satelliteMap, hybridLabels]);
+        }
+
+        function initBothMaps() {
+            map1 = L.map('map1', { center: [20.5937, 78.9629], zoom: 5, layers: [createSatelliteHybridLayer()] });
+            markersGroup1 = L.layerGroup().addTo(map1);
+
+            map2 = L.map('map2', { center: [20.5937, 78.9629], zoom: 5, layers: [createSatelliteHybridLayer()] });
+            highlightsGroup2 = L.layerGroup().addTo(map2);
+
+            updateMap1Pins();
+            updateMap2HeatmapAndHighlights();
+        }
+
+        function updateMap1Pins() {
+            markersGroup1.clearLayers();
+            reports.forEach(r => {
+                L.circleMarker([r.lat, r.lng], { radius: 9, fillColor: '#ef4444', color: '#fff', weight: 2, fillOpacity: 0.9 })
+                 .bindPopup(`
+                     <div style="width:180px;">
+                         <b style="color:#059669">${r.category}</b><br>
+                         <small><b>Authority:</b> ${r.authority}</small><br>
+                         <small>${r.location}</small><br>
+                         <p style="font-size:11px;margin:4px 0;">${r.desc}</p>
+                         <img src="${r.photo}" style="width:100%;height:90px;object-fit:cover;border-radius:4px;">
+                     </div>
+                 `).addTo(markersGroup1);
+            });
+        }
+
+        function updateMap2HeatmapAndHighlights() {
+            highlightsGroup2.clearLayers();
+            const heatPoints = [];
+
+            reports.forEach(r => {
+                let color = r.level === 'high' ? '#ef4444' : (r.level === 'medium' ? '#f97316' : '#10b981');
+                heatPoints.push([r.lat, r.lng, r.level === 'high' ? 1.0 : 0.6]);
+
+                L.circle([r.lat, r.lng], {
+                    color: color, fillColor: color, fillOpacity: 0.5, radius: 10000
+                }).bindPopup(`
+                    <div style="font-size:12px;">
+                        <b>${r.authority} Command Zone</b><br>
+                        Location: ${r.location}<br>Category: ${r.category}
+                    </div>
+                `).addTo(highlightsGroup2);
+            });
+
+            if (heatmapLayer2) map2.removeLayer(heatmapLayer2);
+            if (typeof L.heatLayer === 'function') {
+                heatmapLayer2 = L.heatLayer(heatPoints, { radius: 28, blur: 18, maxZoom: 12 }).addTo(map2);
+            }
+        }
+
+        function updateStateData() {
+            const st = document.getElementById("stateSelect").value;
+            const d = stateAnalytics[st] || stateAnalytics["UP"];
+
+            document.getElementById("aqiVal").innerText = d.aqi;
+            document.getElementById("popVal").innerText = d.pop;
+            document.getElementById("popShareVal").innerText = d.popShare;
+            document.getElementById("authorityNameVal").innerText = d.authority;
+            document.getElementById("officerVal").innerText = d.officer;
+            document.getElementById("urbanPctVal").innerText = d.urbanPct;
+            document.getElementById("ruralPctVal").innerText = d.ruralPct;
+
+            document.getElementById("wasteTPDVal").innerText = d.wasteTPD;
+            document.getElementById("wetWastePct").innerText = d.wetPct;
+            document.getElementById("dryWastePct").innerText = d.dryPct;
+            document.getElementById("wasteEffVal").innerText = d.wasteEff;
+            document.getElementById("wasteEffBar").style.width = d.wasteEff;
+
+            const stName = document.getElementById("stateSelect").options[document.getElementById("stateSelect").selectedIndex].text;
+            document.getElementById("selectedStateLabel").innerText = stName.split('(')[0];
+
+            map1.setView(d.center, 8);
+            map2.setView(d.center, 8);
+        }
+
+        function handleReportSubmit(e) {
+            e.preventDefault();
+            const location = document.getElementById("reportLocation").value;
+            const category = document.getElementById("issueCategory").value;
+            let desc = document.getElementById("issueDesc").value;
+
+            const stKey = document.getElementById("stateSelect").value;
+            const assignedAuth = (stateAnalytics[stKey] || stateAnalytics["UP"]).authority;
+
+            const finalPhoto = uploadedPhotoData || aiCategoryPhotos[category] || aiCategoryPhotos["Garbage/Waste"];
+            const newLat = currentGps[0] + (Math.random() - 0.5) * 0.003;
+            const newLng = currentGps[1] + (Math.random() - 0.5) * 0.003;
+
+            reports.unshift({
+                id: "IND-" + Math.floor(100 + Math.random() * 900),
+                location, category, authority: assignedAuth, desc, status: "Assigned to Authority", level: "high",
+                lat: newLat, lng: newLng, photo: finalPhoto
+            });
+
+            updateMap1Pins();
+            updateMap2HeatmapAndHighlights();
+
+            map1.setView([newLat, newLng], 15);
+            map2.setView([newLat, newLng], 15);
+
+            if (isAdminLoggedIn) renderAdminTable();
+
+            alert(`Report Submitted & Automatically Assigned to: ${assignedAuth}`);
+        }
+
+        function startAuthorityMeeting() {
+            const stKey = document.getElementById("stateSelect").value;
+            const assignedAuth = (stateAnalytics[stKey] || stateAnalytics["UP"]).authority;
+            document.getElementById("meetingAuthorityName").innerText = assignedAuth;
+            openModal('videoMeetingModal');
+        }
+
+        function startLiveGpsTracking() {
+            if ("geolocation" in navigator) {
+                document.getElementById("gpsStatus").innerText = "Tracking Live GPS...";
+                watchId = navigator.geolocation.watchPosition((pos) => {
+                    currentGps = [pos.coords.latitude, pos.coords.longitude];
+                    document.getElementById("gpsStatus").innerText = `Live: ${currentGps[0].toFixed(4)}, ${currentGps[1].toFixed(4)}`;
+
+                    if (liveUserMarker) map1.removeLayer(liveUserMarker);
+                    const customIcon = L.divIcon({ className: 'pulse-marker', iconSize: [16, 16] });
+                    liveUserMarker = L.marker(currentGps, { icon: customIcon }).addTo(map1).bindPopup("<b>Your Live Position</b>").openPopup();
+
+                    map1.setView(currentGps, 15);
+                    map2.setView(currentGps, 15);
+                });
+            }
+        }
+
+        function convertWithAI() {
+            const txt = document.getElementById("issueDesc").value;
+            if(txt) document.getElementById("issueDesc").value = `[AI Formal Report]: Issue registered. Details: "${txt}". Dispatch requested for official site resolution.`;
+        }
+
+        function previewImage(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const r = new FileReader();
+                r.onload = (ex) => {
+                    uploadedPhotoData = ex.target.result;
+                    document.getElementById("imagePreview").src = uploadedPhotoData;
+                    document.getElementById("imagePreviewContainer").classList.remove("hidden");
+                }
+                r.readAsDataURL(file);
+            }
+        }
+
+        function searchLocationOnMap() {
+            const q = document.getElementById("mapSearchInput").value;
+            if (q) {
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ', India')}`)
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d[0]) {
+                            const lat = parseFloat(d[0].lat);
+                            const lon = parseFloat(d[0].lon);
+                            map1.setView([lat, lon], 13);
+                            map2.setView([lat, lon], 13);
+                        }
+                    });
+            }
+        }
+
+        function handleAdminLogin() {
+            if (document.getElementById("adminPassword").value === "admin123") {
+                isAdminLoggedIn = true;
+                closeModal('adminAuthModal');
+                document.getElementById("adminLockMessage").classList.add("hidden");
+                document.getElementById("adminTableContainer").classList.remove("hidden");
+                document.getElementById("exportCsvBtn").removeAttribute("disabled");
+                renderAdminTable();
+            } else {
+                alert("Incorrect Passcode!");
+            }
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById("adminTableBody");
+            tbody.innerHTML = reports.map((r, i) => `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <td class="px-4 py-2 font-bold">${r.id}</td>
+                    <td class="px-4 py-2">${r.location}</td>
+                    <td class="px-4 py-2">${r.category}</td>
+                    <td class="px-4 py-2 font-semibold text-blue-600">${r.authority}</td>
+                    <td class="px-4 py-2"><img src="${r.photo}" class="h-10 w-16 object-cover rounded"></td>
+                    <td class="px-4 py-2">
+                        <select onchange="updateReportStatus(${i}, this.value)" class="bg-slate-50 border text-xs rounded p-1 dark:bg-slate-900">
+                            <option ${r.status==='Assigned to Authority'?'selected':''}>Assigned to Authority</option>
+                            <option ${r.status==='Action Initiated'?'selected':''}>Action Initiated</option>
+                            <option ${r.status==='In Progress'?'selected':''}>In Progress</option>
+                            <option ${r.status==='Resolved'?'selected':''}>Resolved</option>
+                        </select>
+                    </td>
+                    <td class="px-4 py-2 text-center">
+                        <button onclick="startAuthorityMeeting()" class="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold hover:bg-emerald-200">
+                            <i class="fa-solid fa-video mr-1"></i> Meeting
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateReportStatus(idx, val) {
+            reports[idx].status = val;
+            updateMap1Pins();
+            updateMap2HeatmapAndHighlights();
+        }
+
+        function exportCSV() {
+            if (!isAdminLoggedIn) return;
+            let csv = "ID,Location,Category,Assigned Authority,Status\n";
+            reports.forEach(r => {
+                csv += `"${r.id}","${r.location}","${r.category}","${r.authority}","${r.status}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'Official_Authority_Action_Reports.csv');
+            a.click();
+        }
+
+        function toggleDarkMode() { document.documentElement.classList.toggle('dark'); }
+        function switchAuthTab(tab) {
+            document.getElementById("loginView").classList.add("hidden");
+            document.getElementById("registerView").classList.add("hidden");
+            document.getElementById("forgotView").classList.add("hidden");
+            if (tab === 'login') document.getElementById("loginView").classList.remove("hidden");
+            else if (tab === 'register') document.getElementById("registerView").classList.remove("hidden");
+            else if (tab === 'forgot') document.getElementById("forgotView").classList.remove("hidden");
+        }
+
+        function handleUserLogin() {
+            currentUser = { name: "Aman User" };
+            document.getElementById("currentUserLabel").innerText = currentUser.name;
+            closeModal('userAuthModal');
+            alert("Login Successful!");
+        }
+
+        function handleUserRegister() { alert("Registered! Login now."); switchAuthTab('login'); }
+        function handleForgotPassword() { alert("Reset link sent to registered Gmail!"); switchAuthTab('login'); }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    </script>
+</body>
+</html>
